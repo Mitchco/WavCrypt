@@ -24,8 +24,8 @@
 #define KeyChannels 2
 
 #include "../JuceLibraryCode/JuceHeader.h"
-
-class NoiseKeyGenerator : public Thread
+//==============================================================================
+class NoiseKeyGenerator : public juce::Thread
 {
 public:
     NoiseKeyGenerator()
@@ -39,7 +39,7 @@ public:
     
     void generateKey()
     {
-        FileChooser chooser("Choose key save location",
+        juce::FileChooser chooser("Choose key save location",
                     File::getCurrentWorkingDirectory(),
                     "*.wav",
                     false,
@@ -57,7 +57,7 @@ public:
     
     void run() override
     {
-        AudioBuffer<float> noiseBuffer;
+        juce::AudioBuffer<float> noiseBuffer;
         noiseBuffer.setSize(numChannels, KeySize, false, true, false);
         
         for (auto ch = 0; ch < numChannels; ch++)
@@ -79,7 +79,8 @@ public:
         
         auto* outStream = new FileOutputStream(keyFile);
         
-        if (ScopedPointer<AudioFormatWriter> audioWriter = wavFormat->createWriterFor(outStream, 48000, numChannels, 24, StringPairArray(), 0))
+        if (juce::ScopedPointer<AudioFormatWriter> audioWriter = wavFormat->createWriterFor(outStream, 48000, numChannels, 24, StringPairArray(), 0))
+            
         {
             audioWriter->writeFromAudioSampleBuffer(noiseBuffer, 0, noiseBuffer.getNumSamples());
         }
@@ -93,16 +94,16 @@ public:
 private:
     const int numChannels = KeyChannels;
    
-    Random random;
-    AudioFormatManager afm;
+    juce::Random random;
+    juce::AudioFormatManager afm;
  
-    File keyFile;
+    juce::File keyFile;
     
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(NoiseKeyGenerator)
 };
 
-
-class WavEncryptor : public Thread
+//==============================================================================
+class WavEncryptor : public juce::Thread
 {
 public:
     WavEncryptor()
@@ -116,7 +117,7 @@ public:
     
     void encryptWavFiles()
     {
-        FileChooser originalFolderChooser("Choose original wavs folder",
+        juce::FileChooser originalFolderChooser("Choose original wavs folder",
                                             File::getCurrentWorkingDirectory(),
                                             "",
                                             false,
@@ -133,7 +134,7 @@ public:
             
         }
         
-        FileChooser keyFileChooser("Select Key File",
+        juce::FileChooser keyFileChooser("Select Key File",
                                           File::getCurrentWorkingDirectory(),
                                           "*.wav",
                                           false,
@@ -144,7 +145,10 @@ public:
         {
             auto keyFile = keyFileChooser.getResult();
             
-            if (ScopedPointer<AudioFormatReader> reader = afm.createReaderFor(keyFile))
+            
+            if (juce::ScopedPointer<AudioFormatReader> reader = afm.createReaderFor(keyFile.createInputStream()))
+            // if(juce::AudioFormatReader *reader = afm.createReaderFor( keyFile.createInputStream()))
+
             {
                 keyBuffer.setSize(reader->numChannels, reader->lengthInSamples, false, true, false);
                 reader->read(&keyBuffer, 0, reader->lengthInSamples, 0, true, reader->numChannels > 1);
@@ -171,7 +175,7 @@ public:
     
     void run() override
     {
-        DirectoryIterator iter (originalFolder, true, "*.wav", File::findFiles);
+        juce::DirectoryIterator iter (originalFolder, true, "*.wav", File::findFiles);
         
         auto wavFormat = afm.getKnownFormat(0);
         
@@ -179,11 +183,11 @@ public:
         {
           auto file = iter.getFile();
             
-           if (ScopedPointer<AudioFormatReader> reader = afm.createReaderFor(file))
+           if (juce::ScopedPointer<AudioFormatReader> reader = afm.createReaderFor(file))
            {
                jassert(reader->numChannels == keyBuffer.getNumChannels()); //Channel mismatch between key and file to encrypt
                
-               AudioBuffer<float> originalBuffer;
+               juce::AudioBuffer<float> originalBuffer;
                originalBuffer.setSize(reader->numChannels, reader->lengthInSamples, false, true, false);
                
                reader->read(&originalBuffer, 0, reader->lengthInSamples, 0, true, reader->numChannels > 1);
@@ -204,7 +208,7 @@ public:
                    }
                }
                
-               File newFile (encryptedFolder.getFullPathName() + "/" + file.getFileNameWithoutExtension() + "_encrypted" + file.getFileExtension());
+               juce::File newFile (encryptedFolder.getFullPathName() + "/" + file.getFileNameWithoutExtension() + "_encrypted" + file.getFileExtension());
                auto* outStream = new FileOutputStream(newFile);
                if (ScopedPointer<AudioFormatWriter> writer = wavFormat->createWriterFor(outStream, reader->sampleRate, reader->numChannels, reader->bitsPerSample, StringPairArray(), 0) )
                {
@@ -226,19 +230,19 @@ public:
     std::function<void(float)> reportProgress;
     
 private:
-    File originalFolder;
-    File encryptedFolder;
+    juce::File originalFolder;
+    juce::File encryptedFolder;
     
- AudioFormatManager afm;
+    juce::AudioFormatManager afm;
     
-    AudioBuffer<float> keyBuffer;
+    juce::AudioBuffer<float> keyBuffer;
     int keyBufferLength;
     
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(WavEncryptor)
 };
 
-
-class WavDecryptor : public Thread
+//==============================================================================
+class WavDecryptor : public juce::Thread
 {
 public:
     WavDecryptor()
@@ -259,7 +263,7 @@ public:
     
     void decryptWavFiles()
     {
-        FileChooser encryptedFolderChooser("Choose original wavs folder",
+        juce::FileChooser encryptedFolderChooser("Choose encrypted wavs folder",
                                           File::getCurrentWorkingDirectory(),
                                           "",
                                           false,
@@ -276,7 +280,7 @@ public:
             
         }
         
-        FileChooser keyFileChooser("Select Key File",
+        juce::FileChooser keyFileChooser("Select Key File",
                                    File::getCurrentWorkingDirectory(),
                                    "*.wav",
                                    false,
@@ -287,7 +291,8 @@ public:
         {
             auto keyFile = keyFileChooser.getResult();
             
-            if (ScopedPointer<AudioFormatReader> reader = afm.createReaderFor(keyFile))
+            if (juce::ScopedPointer<AudioFormatReader> reader = afm.createReaderFor(keyFile.createInputStream()))
+            // if (auto reader = std::unique_ptr<AudioFormatReader>(afm.createReaderFor (keyFile.createInputStream())))
             {
                 keyBuffer.setSize(reader->numChannels, reader->lengthInSamples, false, true, false);
                 reader->read(&keyBuffer, 0, reader->lengthInSamples, 0, true, reader->numChannels > 1);
@@ -305,7 +310,7 @@ public:
     
     void run() override
     {
-        DirectoryIterator iter (encryptedFolder, true, "*.wav", File::findFiles);
+        juce::DirectoryIterator iter (encryptedFolder, true, "*.wav", File::findFiles);
         
         auto wavFormat = afm.getKnownFormat(0);
         
@@ -313,11 +318,11 @@ public:
         {
             auto file = iter.getFile();
             
-            if (ScopedPointer<AudioFormatReader> reader = afm.createReaderFor(file))
+            if (juce::ScopedPointer<AudioFormatReader> reader = afm.createReaderFor(file))
             {
                 jassert(reader->numChannels == keyBuffer.getNumChannels()); //Channel mismatch between key and file to encrypt
                 
-                AudioBuffer<float> originalBuffer;
+                juce::AudioBuffer<float> originalBuffer;
                 originalBuffer.setSize(reader->numChannels, reader->lengthInSamples, false, true, false);
                 
                 reader->read(&originalBuffer, 0, reader->lengthInSamples, 0, true, reader->numChannels > 1);
@@ -338,9 +343,9 @@ public:
                     }
                 }
                 
-                File newFile (decryptedFolder.getFullPathName() + "/" + file.getFileNameWithoutExtension() + "_decrypted" + file.getFileExtension());
+                juce::File newFile (decryptedFolder.getFullPathName() + "/" + file.getFileNameWithoutExtension() + "_decrypted" + file.getFileExtension());
                 auto* outStream = new FileOutputStream(newFile);
-                if (ScopedPointer<AudioFormatWriter> writer = wavFormat->createWriterFor(outStream, reader->sampleRate, reader->numChannels, reader->bitsPerSample, StringPairArray(), 0) )
+                if (juce::ScopedPointer<AudioFormatWriter> writer = wavFormat->createWriterFor(outStream, reader->sampleRate, reader->numChannels, reader->bitsPerSample, StringPairArray(), 0) )
                 {
                     writer->writeFromAudioSampleBuffer(originalBuffer, 0, originalBuffer.getNumSamples());
                 }
@@ -360,12 +365,12 @@ public:
     std::function<void(float)> reportProgress;
     
 private:
-    File encryptedFolder;
-    File decryptedFolder;
+    juce::File encryptedFolder;
+    juce::File decryptedFolder;
     
-    AudioFormatManager afm;
+    juce::AudioFormatManager afm;
     
-    AudioBuffer<float> keyBuffer;
+    juce::AudioBuffer<float> keyBuffer;
     int keyBufferLength;
     
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(WavDecryptor)
