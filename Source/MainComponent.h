@@ -36,7 +36,7 @@ private:
     
     LoadingBar loadingBar;
     
-    TextButton
+    juce::TextButton
     generateKeyButton,
     encryptWavFilesButton,
     decryptWavFilesButton;

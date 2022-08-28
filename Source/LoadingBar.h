@@ -85,7 +85,7 @@ public:
    
     }
 private:
-    Atomic<float> progress;
+    juce::Atomic<float> progress;
     
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(LoadingBar)
 };
